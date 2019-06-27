@@ -1,0 +1,300 @@
+// For Auth and Auth token  
+//getSettings function is getting the valu based on the key
+public function GetSessionID()
+    {
+  
+        $appIdfetch         = getSettings('appId');
+        $devIdfetch         = getSettings('devId');
+        $certIdfetch        = getSettings('certId');
+        $RuNamefetch        = getSettings('RuName');
+        $usernamefetch      = getSettings('username');
+        $endpointfetch      = getSettings('endpointurl');
+        $eBayAuthTokenfetch = getSettings('eBayAuthToken');
+        $appId              = $appIdfetch['value'];
+        $devId              = $devIdfetch['value'];
+        $certId             = $certIdfetch['value'];
+        $runame             = $RuNamefetch['value'];
+        $username           = $usernamefetch['value'];
+        $endpoint           = $endpointfetch['value'];
+        
+        $eBayAuthTokenfetch = $eBayAuthTokenfetch['value'];
+        $xml                = '<?xml version="1.0" encoding="utf-8"?>' .
+            '<GetSessionIDRequest xmlns="urn:ebay:apis:eBLBaseComponents">' .
+            '<RuName>' . $runame . '</RuName>' .
+            '</GetSessionIDRequest>';
+        $headers = [
+            'Content-Type:text/xml',
+            'X-EBAY-API-COMPATIBILITY-LEVEL:727',
+            'X-EBAY-API-DEV-NAME: ' . $devId . '',
+            'X-EBAY-API-APP-NAME: ' . $appId . '',
+            'X-EBAY-API-CERT-NAME: ' . $certId . '',
+            'X-EBAY-API-SITEID: 0',
+            'X-EBAY-API-CALL-NAME: GetSessionID',
+        ];
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $endpoint);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $xml);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 400);
+        $result = curl_exec($ch);
+        $result = new SimpleXMLElement($result);
+        if ('Success' == $result->Ack) {
+            $this->session->set_userdata("SessionID", urlencode($result->SessionID));
+            header('Location: https://signin.ebay.com/ws/eBayISAPI.dll?SignIn&runame=' . $runame . '&SessID=' . urlencode($result->SessionID) . '');
+        } else {
+            $this->session->set_flashdata('errors', 'Store not connect with ebay. There might be some errors, try again later.');
+            redirect('frontend/users/store');
+        }
+        curl_close($ch);
+    }
+
+   
+	//ebey will redirect to this url after login
+    public function successEbayLogin(){
+        check_if_not_login();
+        $appIdfetch         = getSettings('appId');
+        $devIdfetch         = getSettings('devId');
+        $certIdfetch        = getSettings('certId');
+        $RuNamefetch        = getSettings('RuName');
+        $usernamefetch      = getSettings('username');
+        $endpointfetch      = getSettings('endpointurl');
+        $eBayAuthTokenfetch = getSettings('eBayAuthToken');
+        $appId              = $appIdfetch['value'];
+        $devId              = $devIdfetch['value'];
+        $certId             = $certIdfetch['value'];
+        $runame             = $RuNamefetch['value'];
+        $username           = $usernamefetch['value'];
+        $endpoint           = $endpointfetch['value'];
+        $xml                = '<?xml version="1.0" encoding="utf-8"?>
+        <FetchTokenRequest xmlns="urn:ebay:apis:eBLBaseComponents">
+        <SessionID>' . urldecode($this->session->userdata('SessionID')) . '</SessionID>
+        </FetchTokenRequest>';
+        $headers = [
+            'Content-Type:text/xml',
+            'X-EBAY-API-COMPATIBILITY-LEVEL:859',
+            'X-EBAY-API-DEV-NAME: ' . $devId . '',
+            'X-EBAY-API-APP-NAME: ' . $appId . '',
+            'X-EBAY-API-CERT-NAME: ' . $certId . '',
+            'X-EBAY-API-SITEID: 0',
+            'X-EBAY-API-CALL-NAME: FetchToken',
+        ];
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $endpoint);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $xml);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 400);
+        $result = curl_exec($ch);
+        $result = new SimpleXMLElement($result);
+        if ('Success' == $result->Ack) {
+            //echo '<pre>';print_r($result);exit;
+            $HardExpirationTime = $result->HardExpirationTime;
+            $authToken          = $result->eBayAuthToken;
+            $xml                = '
+            <?xml version="1.0" encoding="utf-8"?>
+            <GetUserRequest xmlns="urn:ebay:apis:eBLBaseComponents">
+            <RequesterCredentials>
+            <eBayAuthToken>' . $authToken . '</eBayAuthToken>
+            </RequesterCredentials>
+            </GetUserRequest> ';
+            $headers = [
+                'Content-Type:text/xml',
+                'X-EBAY-API-COMPATIBILITY-LEVEL:859',
+                'X-EBAY-API-DEV-NAME: ' . $devId . '',
+                'X-EBAY-API-APP-NAME: ' . $appId . '',
+                'X-EBAY-API-CERT-NAME: ' . $certId . '',
+                'X-EBAY-API-SITEID: 0',
+                'X-EBAY-API-CALL-NAME: GetUser',
+            ];
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $endpoint);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $xml);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 400);
+            $result = curl_exec($ch);
+            $result = new SimpleXMLElement($result);
+            if ('Success' == $result->Ack) {
+                // echo '<pre>';
+                //    print_r($result);
+                //    exit;
+                $new_format         = strtotime($HardExpirationTime);
+                $HardExpirationTime = date("Y-m-d H:i:s", $new_format);
+                $UserID             = $result->User->UserID;
+                $this->comman_model->delete("store_connections", ["user_id" => $this->session->userdata('user_id')]);
+                $storeData = [
+                    'user_id'            => $this->session->userdata("user_id"),
+                    'store'              => urldecode($this->session->userdata("store")),
+                    'date_connected'     => date("Y-m-d H:i:s"),
+                    'is_active'          => 'yes',
+                    'HardExpirationTime' => (string) $HardExpirationTime,
+                    'authToken'          => (string) $authToken,
+                    'EIASToken'          => (string) $result->User->EIASToken,
+                    'UserID'             => (string) $UserID,
+                    'UserEmail'          => (string) $result->User->UserEmail,
+                ];
+                $is_saved = $this->comman_model->save('store_connections', $storeData);
+                if ($is_saved) {
+                    $this->session->set_flashdata('success', 'Store connected with ebay.');
+                } else {
+                    $this->session->set_flashdata('errors', 'Store not connect with ebay. There might be some errors, try again later.');
+                }
+            } else {
+                $this->session->set_flashdata('errors', 'Store not connect with ebay. There might be some errors, try again later.');
+            }
+        } else {
+            $this->session->set_flashdata('errors', 'Store not connect with ebay. There might be some errors, try again later.');
+        }
+        redirect('frontend/users/store');
+    }
+
+    public function fetchSessionToken($sessionId) {
+        check_if_not_login();
+        $appIdfetch         = getSettings('appId');
+        $devIdfetch         = getSettings('devId');
+        $certIdfetch        = getSettings('certId');
+        $RuNamefetch        = getSettings('RuName');
+        $usernamefetch      = getSettings('username');
+        $endpointfetch      = getSettings('endpointurl');
+        $eBayAuthTokenfetch = getSettings('eBayAuthToken');
+        $appId              = $appIdfetch['value'];
+        $devId              = $devIdfetch['value'];
+        $certId             = $certIdfetch['value'];
+        //$runame = 'pantelis-testenvi-SBX-451ca6568-2daed4b5';
+        $runame   = $RuNamefetch['value'];
+        $username = $usernamefetch['value'];
+        $endpoint = $endpointfetch['value'];
+        $xml      = '<?xml version="1.0" encoding="utf-8"?>
+        <FetchTokenRequest xmlns="urn:ebay:apis:eBLBaseComponents">
+        <SessionID>' . $sessionId . '</SessionID>
+        </FetchTokenRequest>';
+        $headers = [
+            'Content-Type:text/xml',
+            'X-EBAY-API-COMPATIBILITY-LEVEL:859',
+            'X-EBAY-API-DEV-NAME: ' . $devId . '',
+            'X-EBAY-API-APP-NAME: ' . $appId . '',
+            'X-EBAY-API-CERT-NAME: ' . $certId . '',
+            'X-EBAY-API-SITEID: 0',
+            'X-EBAY-API-CALL-NAME: FetchToken',
+        ];
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $endpoint);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $xml);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 400);
+        $result = curl_exec($ch);
+        $result = new SimpleXMLElement($result);
+        //echo '<pre>';print_r($result);exit;
+        $HardExpirationTime = $result->HardExpirationTime;
+        return $result->eBayAuthToken;
+    }
+
+
+
+//For O auth tokens
+
+
+ public function GetSessionID() {
+        header('Location: https://auth.ebay.com/oauth2/authorize?client_id=Constant-loftusch-PRD-82611b00f-5cc49381&response_type=code&redirect_uri=Constantinos_Fr-Constant-loftus-qjehr&scope=https://api.ebay.com/oauth/api_scope https://api.ebay.com/oauth/api_scope/sell.marketing.readonly https://api.ebay.com/oauth/api_scope/sell.marketing https://api.ebay.com/oauth/api_scope/sell.inventory.readonly https://api.ebay.com/oauth/api_scope/sell.inventory https://api.ebay.com/oauth/api_scope/sell.account.readonly https://api.ebay.com/oauth/api_scope/sell.account https://api.ebay.com/oauth/api_scope/sell.fulfillment.readonly https://api.ebay.com/oauth/api_scope/sell.fulfillment https://api.ebay.com/oauth/api_scope/sell.analytics.readonly');
+    }
+
+    public function successEbayLogin()
+    {
+        $code = $this->input->get('code');
+        // <client_id>:<client_secret>
+        $token = base64_encode('Constant-loftusch-PRD-82611b00f-5cc49381:PRD-2611b00ffa42-4eb5-481a-870b-cd70');
+        $curl  = curl_init();
+        curl_setopt($curl, CURLOPT_URL, 'https://api.ebay.com/identity/v1/oauth2/token');
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($curl, CURLOPT_POST, 1);
+        $cre = [
+            'grant_type: authorization_code',
+            'code: ' . $code,
+            'redirect_uri:Constantinos_Fr-Constant-loftus-qjehr',
+        ];
+        curl_setopt($curl, CURLOPT_POSTFIELDS, "grant_type=authorization_code&code=$code&redirect_uri=Constantinos_Fr-Constant-loftus-qjehr");
+        curl_setopt($curl, CURLOPT_HTTPHEADER, [
+            'Authorization: Basic ' . $token,
+            // 'Accept: */*',
+            'Content-Type: application/x-www-form-urlencoded',
+        ]);
+        // curl_setopt($curl, CURLOPT_POSTFIELDS, $cre);
+        $resp = curl_exec($curl);
+        // echo $resp;
+        echo '<pre>';
+        $resp = json_decode($resp, JSON_OBJECT_AS_ARRAY);
+        setcookie("refresh", $resp['refresh_token'], time() + 3600); /* expire in 1 hour */
+        setcookie("oauth", $resp['access_token'], time() + 3600 * 24); /* expire in 1 hour */
+        redirect('home2/bar_chart');
+        // $resp = json_encode($resp, JSON_PRETTY_PRINT);
+        print_r($resp);
+        curl_close($curl);
+        exit;
+    }
+ public function refreshToken() {
+        // $code =  $this->input->get('code');
+        $resfresh = $this->input->cookie('refresh');
+        // <client_id>:<client_secret>
+        $token = base64_encode('Constant-loftusch-PRD-82611b00f-5cc49381:PRD-2611b00ffa42-4eb5-481a-870b-cd70');
+        $curl  = curl_init();
+        curl_setopt($curl, CURLOPT_URL, 'https://api.ebay.com/identity/v1/oauth2/token');
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($curl, CURLOPT_POST, 1);
+        // $cre =  array(
+        //        'grant_type: authorization_code',
+        //         'code: '.$code,
+        //         'redirect_uri:Constantinos_Fr-Constant-loftus-qjehr'
+        //     );
+        curl_setopt($curl, CURLOPT_POSTFIELDS, "grant_type=refresh_token&refresh_token=$resfresh&scope=https://api.ebay.com/oauth/api_scope/sell.account%20https://api.ebay.com/oauth/api_scope/sell.inventory");
+        curl_setopt($curl, CURLOPT_HTTPHEADER, [
+            'Authorization: Basic ' . $token,
+            // 'Accept: */*',
+            'Content-Type: application/x-www-form-urlencoded',
+        ]);
+        // curl_setopt($curl, CURLOPT_POSTFIELDS, $cre);
+        $resp = curl_exec($curl);
+        // echo $resp;
+        echo '<pre>';
+        $resp = json_decode($resp, JSON_OBJECT_AS_ARRAY);
+        $resp = json_encode($resp, JSON_PRETTY_PRINT);
+        print_r($resp);
+        curl_close($curl);
+        exit;
+    }
+public function newApiTest()
+    {
+        $url = 'https://api.ebay.com/sell/account/v1/privilege/';
+        // $username = 'theamazingstore';
+        $appId      = 'pantelis-testenvi-PRD-f51ca6568-289dd7f0';
+        $devId      = '72703a0a-45f9-4269-8804-51d5ee93f8a4';
+        $certId     = 'PRD-51ca6568b813-2fba-4c8d-b161-c0ac';
+        $runame     = "pantelis_pan-pantelis-testen-diaodhx";
+        $auth_token = $this->comman_model->get('store_connections', ['user_id' => $this->session->userdata('user_id')]);
+        if (!$auth_token) {
+            $this->session->set_flashdata('errors', 'First connect to store');
+            redirect('frontend/users/store');
+        }
+        // $token = $auth_token[0]['authToken'];
+        $token    = "";
+        $headers2 = [
+            'Content-Type'  => 'text/json',
+            'Accept'        => 'application/json',
+            'Authorization' => "Bearer $token",
+        ];
+        // print_r($headers2);
+        // exit();
+        // $auth_token[0]['authToken']
+        $con = curl_init();
+        curl_setopt($con, CURLOPT_URL, $url);
+        curl_setopt($con, CURLOPT_SSL_VERIFYPEER, 0);
+        curl_setopt($con, CURLOPT_SSL_VERIFYHOST, 0);
+        curl_setopt($con, CURLOPT_HTTPHEADER, $headers2);
+        curl_setopt($con, CURLOPT_POST, 1);
+        curl_setopt($con, CURLOPT_RETURNTRANSFER, 1);
+        $response = curl_exec($con);
+        echo "<pre>";
+        print_r($response);die();
+        curl_close($con);
+    }
