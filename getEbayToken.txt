@@ -193,9 +193,7 @@ public function GetSessionID()
 
 
 
-//For O auth tokens
-
-
+//For O auth tokens create link
  public function GetSessionID() {
         header('Location: https://auth.ebay.com/oauth2/authorize?client_id=Constant-loftusch-PRD-82611b00f-5cc49381&response_type=code&redirect_uri=Constantinos_Fr-Constant-loftus-qjehr&scope=https://api.ebay.com/oauth/api_scope https://api.ebay.com/oauth/api_scope/sell.marketing.readonly https://api.ebay.com/oauth/api_scope/sell.marketing https://api.ebay.com/oauth/api_scope/sell.inventory.readonly https://api.ebay.com/oauth/api_scope/sell.inventory https://api.ebay.com/oauth/api_scope/sell.account.readonly https://api.ebay.com/oauth/api_scope/sell.account https://api.ebay.com/oauth/api_scope/sell.fulfillment.readonly https://api.ebay.com/oauth/api_scope/sell.fulfillment https://api.ebay.com/oauth/api_scope/sell.analytics.readonly');
     }
